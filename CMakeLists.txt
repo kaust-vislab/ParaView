@@ -180,7 +180,7 @@ set (PV_INSTALL_EXPORT_NAME ${VTK_INSTALL_EXPORT_NAME})
 # build machine without any issues. If this not desired, simply comment the
 # following line and "make install" will strip all rpaths, which is default
 # behavior.
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+#SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
