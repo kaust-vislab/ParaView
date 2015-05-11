@@ -1,6 +1,7 @@
 #!/bin/bash
 # This script will launch pvserver on 40 processes needed for Zone2 tiled-display with the DISPLAY
 # environments set appropriately.
+module load kvl-remote
 module load paraview/4.3.1
 mpirun -genvlist LD_LIBRARY_PATH,PATH,PYTHONPATH  -hosts z2-0-0,z2-1-3,z2-1-3,z2-1-3,z2-1-3,z2-2-3,z2-2-3,z2-2-3,z2-2-3,z2-3-0,z2-0-0,z2-1-2,z2-1-2,z2-1-2,z2-1-2,z2-2-2,z2-2-2,z2-2-2,z2-2-2,z2-3-0,z2-0-0,z2-1-1,z2-1-1,z2-1-1,z2-1-1,z2-2-1,z2-2-1,z2-2-1,z2-2-1,z2-3-0,z2-0-0,z2-1-0,z2-1-0,z2-1-0,z2-1-0,z2-2-0,z2-2-0,z2-2-0,z2-2-0,z2-3-0 \
         -env DISPLAY :0.0 -np 1  /var/remote/software/paraview/4.3.1/bin/pvrenderserver  -tdx=10 -tdy=4 :\

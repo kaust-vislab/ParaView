@@ -5,8 +5,8 @@
 module load kvl-remote
 module load paraview/4.3.1
 
-nodes=8
-tasks_per_node=16
+nodes=4
+tasks_per_node=8
 total_processes=$[nodes*tasks_per_node]
 
 
@@ -15,7 +15,7 @@ total_processes=$[nodes*tasks_per_node]
 #client=10.253.17.2
 # madhu-00 desktop
 client=109.171.139.1
-port=11111
+port=22222
 # madhu-01 desktop
 #client=109.171.139.2
 
@@ -23,10 +23,11 @@ port=11111
 # Run pvrenderserver with mpich2
 mpirun -genv MV2_ENABLE_AFFINITY 0 -genv IPATH_NO_CPUAFFINITY 1 \
     -np $total_processes \
-    -hosts pc102,pc103,pc104,pc105,pc106,pc107,pc108,pc109 \
+    -hosts gpgpu-12,gpgpu-13,gpgpu-14,gpgpu-15 \
     -ppn $tasks_per_node \
-    /var/remote/software/paraview/4.3.1/bin/pvdataserver \
-    --data-server-port=$port
+    /var/remote/software/paraview/4.3.1/bin/pvrenderserver -display :0.0 \
+    --use-offscreen-rendering \
+    --render-server-port=$port
 
 # --client-host=$client
 # --reverse-connection \
