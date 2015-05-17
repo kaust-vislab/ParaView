@@ -8,7 +8,7 @@ module load paraview/4.3.1
 nodes=12
 tasks_per_node=8
 total_processes=$[nodes*tasks_per_node]
-host_file=/var/remote/projects/kaust/ccrc/nga/ngavis/scripts/kvlhosts
+
 
 # Define the address of your ParaView client workstation
 # madhu-laptop

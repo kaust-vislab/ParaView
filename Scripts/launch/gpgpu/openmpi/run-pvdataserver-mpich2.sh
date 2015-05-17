@@ -25,7 +25,7 @@ mpirun -genv MV2_ENABLE_AFFINITY 0 -genv IPATH_NO_CPUAFFINITY 1 \
     -np $total_processes \
     -hosts gpgpu-00,gpgpu-01,gpgpu-02,gpgpu-03,gpgpu-04,gpgpu-05,gpgpu-06,gpgpu-07,gpgpu-08,gpgpu-09,gpgpu-10,gpgpu-11 \
     -ppn $tasks_per_node \
-    /var/remote/software/paraview/4.3.1/bin/pvrenderserver \
+    /var/remote/software/paraview/4.3.1/bin/pvdataserver \
     --data-server-port=$port
 
 # --client-host=$client
