@@ -3,7 +3,7 @@
 
 # Load environment modules
 module load kvl-remote
-module load paraview/4.3.1
+module load paraview/4.3.1-mpich2-x86_64
 
 nodes=12
 tasks_per_node=8
@@ -22,11 +22,12 @@ port=$1
 
 # Run pvserver with mpich2
 /usr/lib64/mpich/bin/mpirun  \
+    -genvlist LD_LIBRARY_PATH,PATH,PYTHONPATH \
     -genv MV2_ENABLE_AFFINITY 0 -genv IPATH_NO_CPUAFFINITY 1 \
     -np $total_processes \
     -hosts pc102,pc103,pc104,pc105,pc106,pc107,pc108,pc109,pc110,pc111,pc112,pc113 \
     -ppn $tasks_per_node \
-    /var/remote/software/paraview/4.2.0/bin/pvserver -display :0.0 \
+    /var/remote/software/paraview/4.3.1-mpich2-x86_64/bin/pvserver -display :0.0 \
     --use-offscreen-rendering \
     --reverse-connection \
     --server-port=$port \
