@@ -2,7 +2,7 @@
 
 
 # Load environment modules
-module load paraview/4.3.1-openmpi-dev
+module load paraview/4.3.1-openmpi-x86_64
 
 nodes=16
 tasks_per_node=8
@@ -23,7 +23,7 @@ port=$1
     -np $total_processes \
     -hostfile $host_file \
     -npernode $tasks_per_node \
-    pvserver \
+    /var/remote/software/paraview/4.3.1-openmpi-x86_64/bin/pvserver  -display :0.0 \
     --use-offscreen-rendering \
     --reverse-connection \
     --server-port=$port \

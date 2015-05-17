@@ -4,10 +4,10 @@
 # Load environment modules
 module load paraview/4.3.1-openmpi-x86_64
 
-nodes=8
+nodes=12
 tasks_per_node=8
 total_processes=$[nodes*tasks_per_node]
-host_file=/home/srinivm/develop/github/kvl/ParaView/Scripts/launch/z5/hosts
+host_file=/home/srinivm/develop/github/kvl/ParaView/Scripts/launch/cornea/hosts
 
 # Define the address of your ParaView client workstation
 # madhu-00 desktop
