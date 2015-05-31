@@ -2,9 +2,12 @@
 
 
 # Load environment modules
+module load kvl-remote
 module load paraview/4.3.1-openmpi-x86_64
 
-nodes=16
+# module load paraview/master-openmpi-x86_64
+
+nodes=4
 tasks_per_node=8
 total_processes=$[nodes*tasks_per_node]
 host_file=/home/srinivm/develop/github/kvl/ParaView/Scripts/launch/gpgpu/hosts
