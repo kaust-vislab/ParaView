@@ -1,0 +1,4 @@
+#!/bin/bash
+
+module load paraview/4.3.1-openmpi-x86_64
+/var/remote/software/paraview/4.3.1-openmpi-x86_64/bin/paraview -url=cs://z2-0-0.z2.vis.kaust.edu.sa:11111
