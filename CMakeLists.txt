@@ -30,6 +30,11 @@
 #==========================================================================
 cmake_minimum_required(VERSION 2.8.8 FATAL_ERROR)
 
+# Link to Qt5's WinMain automatically (in executables).
+if (POLICY CMP0020)
+  cmake_policy(SET CMP0020 NEW)
+endif ()
+
 # Set a consistent MACOSX_RPATH default across all CMake versions.
 # When CMake 2.8.12 is required, change this default to 1.
 # When CMake 3.0.0 is required, remove this block (see CMP0042).
@@ -60,6 +65,14 @@ endif()
 # Choose static or shared libraries.
 option(BUILD_SHARED_LIBS "Build VTK with shared libraries." ON)
 set(VTK_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+
+#------------------------------------------------------------------------------
+# Protect against a stampede of static links at the same time.
+if (NOT BUILD_SHARED_LIBS)
+  set(PV_EXE_JOB_LINK_POOL static_exe_link)
+  set_property(GLOBAL APPEND PROPERTY
+    JOB_POOLS static_exe_link=1)
+endif ()
 
 #-------------------------------------------------------------------------------
 set (ParaView_CMAKE_DIR "${ParaView_SOURCE_DIR}/CMake")
@@ -188,7 +201,12 @@ set (PV_INSTALL_EXPORT_NAME ${VTK_INSTALL_EXPORT_NAME})
 #------------------------------------------------------------------------------
 # Define ParaView specific options.
 #------------------------------------------------------------------------------
-option(BUILD_TESTING "Build ParaView Testing" ON)
+set(default_testing ON)
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.ExternalData/README.rst")
+  # Source tarball without the data, so turn off testing.
+  set(default_testing OFF)
+endif ()
+option(BUILD_TESTING "Build ParaView Testing" ${default_testing})
 option(BUILD_EXAMPLES "Build ParaView examples" OFF)
 option(BUILD_SHARED_LIBS "Build ParaView using shared libraries" ON)
 option(PARAVIEW_BUILD_QT_GUI "Enable ParaView Qt-based client" ON)
@@ -248,6 +266,12 @@ if (UNIX)
     "Build ParaView with CosmoTools VTK Extensions" OFF
     "PARAVIEW_USE_MPI" OFF)
   mark_as_advanced(PARAVIEW_ENABLE_COSMOTOOLS)
+
+  cmake_dependent_option(PARAVIEW_ENABLE_CGNS
+  "Enable the CGNS file reader" OFF
+  "PARAVIEW_USE_MPI" OFF)
+  mark_as_advanced(PARAVIEW_ENABLE_CGNS)
+
 endif()
 
 # Is this a 32 bit or 64bit build. Display this in about dialog.
@@ -429,7 +453,13 @@ if (PARAVIEW_ENABLE_QT_SUPPORT)
 
   include (ParaViewQtVersion)
   if (PARAVIEW_QT_VERSION VERSION_GREATER "4")
-    set (Qt5_FIND_COMPONENTS Widgets)
+    set (Qt5_FIND_COMPONENTS
+      Help
+      Network
+      Test
+      UiTools
+      Widgets
+      Xml)
     include (ParaViewQt5)
     if (NOT QT5_FOUND)
       message( SEND_ERROR "Qt ${QT_MIN_VERSION} or greater not found. "
@@ -833,10 +863,8 @@ endif()
 
 #-----------------------------------------------------------------------------
 # Configure the CTestCustom.cmake file for exclusions.
-if (BUILD_TESTING)
-  configure_file("${ParaView_CMAKE_DIR}/CTestCustom.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/CTestCustom.cmake" @ONLY)
-endif()
+configure_file("${ParaView_CMAKE_DIR}/CTestCustom.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/CTestCustom.cmake" @ONLY)
 
 #-----------------------------------------------------------------------------
 # Create target to download data from the ParaViewData group.  This must come
@@ -853,3 +881,27 @@ if(PARAVIEW_DATA_EXCLUDE_FROM_ALL)
     add_dependencies(ParaViewData VTKData)
   endif()
 endif()
+
+set(is_git FALSE)
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
+  set(is_git TRUE)
+endif ()
+
+if (NOT WIN32 AND is_git)
+  set(source_all)
+  if (PARAVIEW_SOURCE_TARBALL_TARGETS)
+    set(source_all ALL)
+  endif ()
+
+  add_custom_target(paraview-source ${source_all})
+  foreach (format tgz txz zip)
+    add_custom_target("paraview-source-${format}" ${source_all}
+      COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/Utilities/Maintenance/create_tarballs.bash"
+              "--${format}"
+      WORKING_DIRECTORY
+              "${CMAKE_CURRENT_BINARY_DIR}"
+      COMMENT "Creating source tarball in ${format} format")
+    add_dependencies(paraview-source
+      "paraview-source-${format}")
+  endforeach ()
+endif ()

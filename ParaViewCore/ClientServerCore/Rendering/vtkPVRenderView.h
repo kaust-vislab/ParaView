@@ -32,17 +32,18 @@
 
 class vtkAlgorithmOutput;
 class vtkCamera;
+class vtkCuller;
 class vtkExtentTranslator;
+class vtkPVGridAxes3DActor;
 class vtkInformationDoubleKey;
 class vtkInformationDoubleVectorKey;
 class vtkInformationIntegerKey;
+class vtkInteractorStyleDrawPolygon;
 class vtkInteractorStyleRubberBand3D;
 class vtkInteractorStyleRubberBandZoom;
-class vtkInteractorStyleDrawPolygon;
 class vtkLight;
 class vtkLightKit;
 class vtkMatrix4x4;
-class vtkProp;
 class vtkPVAxesWidget;
 class vtkPVCenterAxesActor;
 class vtkPVDataDeliveryManager;
@@ -50,12 +51,14 @@ class vtkPVDataRepresentation;
 class vtkPVHardwareSelector;
 class vtkPVInteractorStyle;
 class vtkPVSynchronizedRenderer;
-class vtkRenderer;
+class vtkProp;
 class vtkRenderViewBase;
 class vtkRenderWindow;
 class vtkRenderWindowInteractor;
+class vtkRenderer;
 class vtkTextRepresentation;
 class vtkTexture;
+class vtkTimerLog;
 
 class VTKPVCLIENTSERVERCORERENDERING_EXPORT vtkPVRenderView : public vtkPVView
 {
@@ -97,7 +100,20 @@ public:
   // labels, 2D annotations etc.
   // @CallOnAllProcessess
   vtkGetObjectMacro(NonCompositedRenderer, vtkRenderer);
-  vtkRenderer* GetRenderer();
+
+  // Description:
+  // Defines various renderer types.
+  enum
+    {
+    DEFAULT_RENDERER = 0,
+    NON_COMPOSITED_RENDERER = 1,
+    };
+
+  // Description:
+  // Returns the renderer given an int identifying its type.
+  // \li DEFAULT_RENDERER: returns the 3D renderer.
+  // \li NON_COMPOSITED_RENDERER: returns the NonCompositedRenderer.
+  virtual vtkRenderer* GetRenderer(int rendererType=DEFAULT_RENDERER);
 
   // Description:
   // Get/Set the active camera. The active camera is set on both the composited
@@ -414,6 +430,10 @@ public:
   // Enable/disable showing of annotation for developers.
   void SetShowAnnotation(bool val);
 
+  // Description:
+  // Set the vtkPVGridAxes3DActor to use for the view.
+  void SetGridAxes3DActor(vtkPVGridAxes3DActor*);
+
   //*****************************************************************
   // Forwarded to orientation axes widget.
   virtual void SetOrientationAxesInteractivity(bool);
@@ -470,7 +490,8 @@ public:
   // Forward to vtkRenderWindow.
   void SetStereoCapableWindow(int val);
   void SetStereoRender(int val);
-  void SetStereoType(int val);
+  vtkSetMacro(StereoType, int);
+  vtkSetMacro(ServerStereoType, int);
   void SetMultiSamples(int val);
   void SetAlphaBitPlanes(int val);
   void SetStencilCapable(int val);
@@ -606,6 +627,11 @@ protected:
   bool ShouldUseLODRendering(double geometry);
 
   // Description:
+  // Returns true if the local process is invovled in rendering composited
+  // geometry i.e. geometry rendered in view that is composited together.
+  bool IsProcessRenderingGeometriesForCompositing(bool using_distributed_rendering);
+
+  // Description:
   // Synchronizes bounds information on all nodes.
   // @CallOnAllProcessess
   void SynchronizeGeometryBounds();
@@ -670,6 +696,7 @@ protected:
   vtkPVAxesWidget* OrientationWidget;
   vtkPVHardwareSelector* Selector;
   vtkSelection* LastSelection;
+  vtkSmartPointer<vtkPVGridAxes3DActor> GridAxes3DActor;
 
   int StillRenderImageReductionFactor;
   int InteractiveRenderImageReductionFactor;
@@ -746,6 +773,12 @@ private:
   void UpdateAnnotationText();
 
   bool OrientationWidgetVisibility;
+
+  int StereoType;
+  int ServerStereoType;
+  void UpdateStereoProperties();
+  vtkSmartPointer<vtkCuller> Culler;
+  vtkNew<vtkTimerLog> Timer;
 //ETX
 };
 

@@ -234,7 +234,7 @@ FUNCTION(add_pvweb_tests prefix)
     set(ACT_BROWSER "nobrowser")
   endif()
 
-  set(pvw_port_number 8080)
+  set(pvw_port_number 9743)
 
   while(ACT_BROWSER)
     # Pull another browser off the list
@@ -362,11 +362,8 @@ FUNCTION(add_multi_client_tests prefix)
         ${extra_args}
         --exit
         )
-      if (${test_name}_FORCE_SERIAL)
-        set_tests_properties("${prefix}.${test_name}" PROPERTIES RUN_SERIAL ON)
-        message(STATUS "Running in serial \"${prefix}.${test_name}\"")
-      endif ()
-
+      # all 'collab' tests are always run in serial i.e. one at a time.
+      set_tests_properties("${prefix}.${test_name}" PROPERTIES RUN_SERIAL ON)
       set_tests_properties("${prefix}.${test_name}" PROPERTIES LABELS "PARAVIEW")
     endif()
   endforeach()

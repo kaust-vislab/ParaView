@@ -156,6 +156,8 @@ set (Module_SRCS
   pqLoadDataReaction.h
   pqLoadStateReaction.cxx
   pqLoadStateReaction.h
+  pqLoadRestoreWindowLayoutReaction.cxx
+  pqLoadRestoreWindowLayoutReaction.h
   pqMainControlsToolbar.cxx
   pqMainControlsToolbar.h
   pqManageCustomFiltersReaction.cxx
@@ -166,6 +168,8 @@ set (Module_SRCS
   pqManagePluginsReaction.h
   pqMasterOnlyReaction.cxx
   pqMasterOnlyReaction.h
+  pqModelTransformSupportBehavior.cxx
+  pqModelTransformSupportBehavior.h
   pqObjectPickingBehavior.cxx
   pqObjectPickingBehavior.h
   pqOpacityTableModel.cxx
@@ -332,12 +336,14 @@ set (Module_MOC_HDRS
   pqLightsEditor.h
   pqListPropertyWidget.h
   pqLoadDataReaction.h
+  pqLoadRestoreWindowLayoutReaction.h
   pqLoadStateReaction.h
   pqMainControlsToolbar.h
   pqManageCustomFiltersReaction.h
   pqManageLinksReaction.h
   pqManagePluginsReaction.h
   pqMasterOnlyReaction.h
+  pqModelTransformSupportBehavior.h
   pqObjectPickingBehavior.h
   pqOpacityTableModel.h
   pqParaViewBehaviors.h

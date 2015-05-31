@@ -125,6 +125,21 @@ class ParaViewWebProtocol(vtk_protocols.vtkWebProtocol):
 
         return os.path.normpath(absolutePath)
 
+    def updateScalarBars(self, view=None, mode=1):
+        """
+        Manage scalarbar state
+
+            view:
+                A view proxy or the current active view will be used.
+
+            mode:
+                HIDE_UNUSED_SCALAR_BARS = 0x01,
+                SHOW_USED_SCALAR_BARS = 0x02
+        """
+        v = view or self.getView(-1)
+        lutMgr = vtkSMTransferFunctionManager()
+        lutMgr.UpdateScalarBars(v.SMProxy, mode)
+
 # =============================================================================
 #
 # Handle Mouse interaction on any type of view
@@ -251,7 +266,8 @@ class ParaViewWebViewPortImageDelivery(ParaViewWebProtocol):
         beginTime = int(round(time() * 1000))
         view = self.getView(options["view"])
         size = [view.ViewSize[0], view.ViewSize[1]]
-        if options and options.has_key("size"):
+        resize = size != options.get("size", size)
+        if resize:
             size = options["size"]
             view.ViewSize = size
         t = 0
@@ -266,6 +282,16 @@ class ParaViewWebViewPortImageDelivery(ParaViewWebProtocol):
         reply = {}
         app = self.getApplication()
         reply["image"] = app.StillRenderToString(view.SMProxy, t, quality)
+
+        # Check that we are getting image size we have set if not wait until we
+        # do.
+        tries = 10;
+        while resize and list(app.GetLastStillRenderImageSize()) != size \
+              and size != [0, 0] and tries > 0:
+            app.InvalidateCache(view.SMProxy)
+            reply["image"] = app.StillRenderToString(view.SMProxy, t, quality)
+            tries -= 1
+
         reply["stale"] = app.GetHasImagesBeingProcessed(view.SMProxy)
         reply["mtime"] = app.GetLastStillRenderToStringMTime()
         reply["size"] = [view.ViewSize[0], view.ViewSize[1]]
@@ -287,6 +313,11 @@ class ParaViewWebViewPortImageDelivery(ParaViewWebProtocol):
 
 class ParaViewWebViewPortGeometryDelivery(ParaViewWebProtocol):
 
+    def __init__(self):
+        super(ParaViewWebViewPortGeometryDelivery, self).__init__()
+
+        self.dataCache = {}
+
     # RpcName: getSceneMetaData => viewport.webgl.metadata
     @exportRpc("viewport.webgl.metadata")
     def getSceneMetaData(self, view_id):
@@ -300,6 +331,77 @@ class ParaViewWebViewPortGeometryDelivery(ParaViewWebProtocol):
         view  = self.getView(view_id)
         data = self.getApplication().GetWebGLBinaryData(view.SMProxy, str(object_id), part-1)
         return data
+
+    # RpcName: getCachedWebGLData => viewport.webgl.cached.data
+    @exportRpc("viewport.webgl.cached.data")
+    def getCachedWebGLData(self, sha):
+        if sha not in self.dataCache:
+            return { 'success': False, 'reason': 'Key %s not in data cache' % sha }
+        return { 'success': True, 'data': self.dataCache[sha] }
+
+    # RpcName: getSceneMetaDataAllTimesteps => viewport.webgl.metadata.alltimesteps
+    @exportRpc("viewport.webgl.metadata.alltimesteps")
+    def getSceneMetaDataAllTimesteps(self, view_id=-1):
+        animationScene = simple.GetAnimationScene()
+        timeKeeper = animationScene.TimeKeeper
+        tsVals = timeKeeper.TimestepValues.GetData()
+        currentTime = timeKeeper.Time
+
+        oldCache = self.dataCache
+        self.dataCache = {}
+        returnToClient = {}
+
+        view  = self.getView(view_id);
+        animationScene.GoToFirst()
+
+        # Iterate over all the timesteps, building up a list of unique shas
+        for i in xrange(len(tsVals)):
+            simple.Render()
+
+            mdString = self.getApplication().GetWebGLSceneMetaData(view.SMProxy)
+            timestepMetaData = json.loads(mdString)
+            objects = timestepMetaData['Objects']
+
+            # Iterate over the objects in the scene
+            for obj in objects:
+                sha = obj['md5']
+                objId = obj['id']
+                numParts = obj['parts']
+
+                if sha not in self.dataCache:
+                    if sha in oldCache:
+                        self.dataCache[sha] = oldCache[sha]
+                    else:
+                        transparency = obj['transparency']
+                        layer = obj['layer']
+                        partData = []
+
+                        # Ask for the binary data for each part of this object
+                        for part in xrange(numParts):
+                            partNumber = part
+                            data = self.getApplication().GetWebGLBinaryData(view.SMProxy, str(objId), partNumber)
+                            partData.append(data)
+
+                        # Now add object, with all its binary parts, to the cache
+                        self.dataCache[sha] = { 'md5': sha,
+                                                'id': objId,
+                                                'numParts': numParts,
+                                                'transparency': transparency,
+                                                'layer': layer,
+                                                'partsList': partData }
+
+                returnToClient[sha] = { 'id': objId, 'numParts': numParts }
+
+            # Now move time forward
+            animationScene.GoToNext()
+
+        # Set the time back to where it was when all timesteps were requested
+        timeKeeper.Time = currentTime
+        animationScene.AnimationTime = currentTime
+        simple.Render()
+
+        return { 'success': True, 'metaDataList': returnToClient }
+
 
 # =============================================================================
 #
@@ -368,7 +470,7 @@ class ParaViewWebColorManager(ParaViewWebProtocol):
         with open(self.pathToLuts, 'r') as fd:
             content = fd.read()
             if content is not None:
-                colorMapMatcher = re.compile('(<ColorMap.+?(?=</ColorMap>)</ColorMap>)', re.DOTALL)
+                colorMapMatcher = re.compile('(<ColorMap\s+.+?(?=</ColorMap>)</ColorMap>)', re.DOTALL)
                 nameMatcher = re.compile('name="([^"]+)"')
                 iterator = colorMapMatcher.finditer(content)
                 for match in iterator:
@@ -506,6 +608,8 @@ class ParaViewWebColorManager(ParaViewWebProtocol):
             if rescale or (lut != lutProxy):
                 vtkSMPVRepresentationProxy.RescaleTransferFunctionToDataRange(repProxy.SMProxy, arrayName, locationMap[arrayLocation], False)
 
+        self.updateScalarBars()
+
         simple.Render()
 
     # RpcName: setOpacityFunctionPoints => pv.color.manager.opacity.points.set
@@ -529,6 +633,166 @@ class ParaViewWebColorManager(ParaViewWebProtocol):
         pwfProxy.Points = pointArray
 
         simple.Render()
+
+    # RpcName: getRgbPoints => pv.color.manager.rgb.points.get
+    @exportRpc("pv.color.manager.rgb.points.get")
+    def getRgbPoints(self, arrayName):
+        """
+            return {
+                "mode": "categorical" | "continuous",
+                "categorical": {
+                    "scalars": [ "1", "2", "3", ... ],
+                    "annotations": [ "a1", "a2", "a3", ... ],
+                    "colors": [ [r1, g1, b1], [r2, g2, b2], [r3, g3, b3], ... ]
+                },
+                "continuous": {
+                    "scalars": [ 1.203, 17.976 ],
+                    "color": [ [r1, g1, b1], [r2, g2, b2] ]
+                }
+            }
+        """
+
+        lutProxy = simple.GetColorTransferFunction(arrayName)
+
+        # First, set the current coloring mode
+        colorInfo = {}
+        colorInfo['mode'] = 'categorical' if lutProxy.InterpretValuesAsCategories else 'continuous'
+
+        # Now build up the continuous coloring information
+        continuousInfo = {}
+
+        l = lutProxy.RGBPoints.GetData()
+        scalars = l[0:len(l):4]
+        continuousInfo['scalars'] = [ float(s) for s in scalars ]
+
+        reds = l[1:len(l):4]
+        greens = l[2:len(l):4]
+        blues = l[3:len(l):4]
+        continuousInfo['colors'] = [ list(a) for a in zip(reds, greens, blues) ]
+
+        colorInfo['continuous'] = continuousInfo
+
+        # Finally, build up the categorical coloring information
+        categoricalInfo = {}
+
+        rgbs = lutProxy.IndexedColors
+        reds = rgbs[0:len(rgbs):3]
+        greens = rgbs[1:len(rgbs):3]
+        blues = rgbs[2:len(rgbs):3]
+        categoricalInfo['colors'] = [ list(a) for a in zip(reds, greens, blues) ]
+
+        l = lutProxy.Annotations
+        scalars = l[0:len(l):2]
+        categoricalInfo['scalars'] = [ float(s) for s in scalars ]
+        categoricalInfo['annotations'] = l[1:len(l):2]
+
+        ### If the numbers of categorical colors and scalars do not match,
+        ### then this is probably because you already had a categorical color
+        ### scheme set up when you applied a new indexed preset.
+        numColors = len(categoricalInfo['colors'])
+        numScalars = len(categoricalInfo['scalars'])
+        if numColors != numScalars:
+            # More colors than scalars means we applied a preset colormap with
+            # more colors than what we had set up already, so I want to add
+            # scalars and annotations.
+            if numColors > numScalars:
+                nextValue = 0
+
+                # Another special case here is that there were no categorical
+                # scalars/colors before the preset was applied, and we will need
+                # to insert a single space character (' ') annotation at the start
+                # of the list to make the scalarbar appear.
+                if numScalars == 0:
+                    categoricalInfo['scalars'].append(nextValue)
+                    categoricalInfo['annotations'].append(' ')
+
+                nextValue = categoricalInfo['scalars'][-1] + 1
+
+                for i in xrange((numColors - numScalars) - 1):
+                    categoricalInfo['scalars'].append(nextValue)
+                    categoricalInfo['annotations'].append('')
+                    nextValue += 1
+
+            # More scalars than colors means we applied a preset colormap with
+            # *fewer* colors than what had already, so I want to add fake colors
+            # for any non-empty annotations I have after the end of the color list
+            elif numScalars > numColors:
+                newScalars = categoricalInfo['scalars'][0:numColors]
+                newAnnotations = categoricalInfo['annotations'][0:numColors]
+
+                for i in xrange(numColors, numScalars):
+                    if categoricalInfo['annotations'][i] != '':
+                        newScalars.append(categoricalInfo['scalars'][i])
+                        newAnnotations.append(categoricalInfo['annotations'][i])
+                        categoricalInfo['colors'].append([0.5, 0.5, 0.5])
+
+                categoricalInfo['scalars'] = newScalars
+                categoricalInfo['annotations'] = newAnnotations
+
+            # Now that we have made the number of indexed colors and associated
+            # scalars match, the final step in this special case is to apply the
+            # matched up props we just computed so that server and client ui are
+            # in sync.
+            idxColorsProperty = []
+            annotationsProperty = []
+
+            for aIdx in xrange(len(categoricalInfo['scalars'])):
+                annotationsProperty.append(str(categoricalInfo['scalars'][aIdx]))
+                annotationsProperty.append(str(categoricalInfo['annotations'][aIdx]))
+                idxColorsProperty.extend(categoricalInfo['colors'][aIdx])
+
+            lutProxy.Annotations = annotationsProperty
+            lutProxy.IndexedColors = idxColorsProperty
+
+            simple.Render
+
+        colorInfo['categorical'] = categoricalInfo
+
+        return colorInfo
+
+    # RpcName: setRgbPoints => pv.color.manager.rgb.points.set
+    @exportRpc("pv.color.manager.rgb.points.set")
+    def setRgbPoints(self, arrayName, rgbInfo):
+        lutProxy = simple.GetColorTransferFunction(arrayName)
+
+        colorMode = rgbInfo['mode']
+        continuousInfo = rgbInfo['continuous']
+        categoricalInfo = rgbInfo['categorical']
+
+        # First make sure the continous mode properties are set
+        continuousScalars = continuousInfo['scalars']
+        continuousColors = continuousInfo['colors']
+
+        rgbPoints = []
+        for idx in xrange(len(continuousScalars)):
+            scalar = continuousScalars[idx]
+            rgb = continuousColors[idx]
+            rgbPoints.append(float(scalar))
+            rgbPoints.extend(rgb)
+        lutProxy.RGBPoints = rgbPoints
+
+        # Now make sure the categorical mode properties are set
+        annotations = categoricalInfo['annotations']
+        categoricalScalars = categoricalInfo['scalars']
+        categoricalColors = categoricalInfo['colors']
+
+        annotationsProperty = []
+        idxColorsProperty = []
+        for aIdx in xrange(len(annotations)):
+            annotationsProperty.append(str(categoricalScalars[aIdx]))
+            annotationsProperty.append(str(annotations[aIdx]))
+            idxColorsProperty.extend(categoricalColors[aIdx])
+
+        lutProxy.Annotations = annotationsProperty
+        lutProxy.IndexedColors = idxColorsProperty
+
+        # Finally, set the coloring mode property
+        if colorMode == 'continuous':      # continuous coloring
+            lutProxy.InterpretValuesAsCategories = 0
+        else:                                    # categorical coloring
+            lutProxy.InterpretValuesAsCategories = 1
+
+        simple.Render();
 
     # RpcName: setSurfaceOpacity => pv.color.manager.surface.opacity.set
     @exportRpc("pv.color.manager.surface.opacity.set")
@@ -1083,6 +1347,8 @@ class ParaViewWebProxyManager(ParaViewWebProtocol):
         timeKeeper = servermanager.ProxyManager().GetProxiesInGroup("timekeeper").values()[0]
         tsVals = timeKeeper.TimestepValues
         if tsVals:
+            if isinstance(tsVals, float):
+                tsVals = [ tsVals ]
             tValStrings = []
             for tsVal in tsVals:
                 tValStrings.append(str(tsVal))
@@ -1403,6 +1669,7 @@ class ParaViewWebProxyManager(ParaViewWebProtocol):
                 pid = proxyJson['parent']
         if proxy is not None and canDelete is True:
             simple.Delete(proxy)
+            self.updateScalarBars()
             return { 'success': 1, 'id': pid }
         return { 'success': 0, 'id': '0' }
 

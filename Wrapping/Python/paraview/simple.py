@@ -1300,6 +1300,19 @@ def LoadDistributedPlugin(pluginname, remote=True, ns=None):
     raise RuntimeError, "Plugin '%s' not found" % pluginname
 
 #==============================================================================
+# Custom Filters Management
+#==============================================================================
+def LoadCustomFilters(filename, ns=None):
+    """Loads a custom filter XML file and updates this module with new
+    constructors if any.
+    If you loaded the simple module with from paraview.simple import *,
+    make sure to pass globals() as an argument."""
+    servermanager.ProxyManager().SMProxyManager.LoadCustomProxyDefinitions(filename)
+    if not ns:
+        ns = globals()
+    _add_functions(ns)
+
+#==============================================================================
 # Selection Management
 #==============================================================================
 def _select(seltype, query=None, proxy=None):
@@ -1531,6 +1544,8 @@ def _create_func(key, module):
         # these functions for pipeline proxies or animation proxies.
         if isinstance(px, servermanager.SourceProxy):
             controller.RegisterPipelineProxy(px, registrationName)
+        elif px.GetXMLGroup() == "animation":
+           controller.RegisterAnimationProxy(px)
         return px
 
     return CreateObject

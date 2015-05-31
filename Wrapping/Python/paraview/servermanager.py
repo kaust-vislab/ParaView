@@ -786,13 +786,24 @@ class VectorProperty(Property):
             values = (values,)
         if not self.GetRepeatable() and len(values) != self.GetNumberOfElements():
             raise RuntimeError("This property requires %d values." % self.GetNumberOfElements())
+
+        convertedValues = map(self.ConvertValue, values)
+
         if self.GetRepeatable():
-            # Clean up first
-            self.SMProperty.SetNumberOfElements(0)
-        idx = 0
-        for val in values:
-            self.SMProperty.SetElement(idx, self.ConvertValue(val))
+          # Clean up first
+          self.SMProperty.SetNumberOfElements(len(convertedValues))
+
+        try:
+          # SetElements() isn't available for all VectorProperty values.
+          # Try to use it so that the proxies are updated only once.
+          # Otherwise, call SetElement() for each element.
+          self.SMProperty.SetElements(convertedValues)
+        except TypeError as e:
+          idx = 0
+          for val in convertedValues:
+            self.SMProperty.SetElement(idx, val)
             idx += 1
+
         self._UpdateProperty()
 
     def Clear(self):
@@ -2561,6 +2572,7 @@ def updateModules(m):
     createModule("lookup_tables", m.rendering)
     createModule("textures", m.rendering)
     createModule('cameramanipulators', m.rendering)
+    createModule('annotations', m.rendering)
     createModule("animation", m.animation)
     createModule("misc", m.misc)
     createModule('animation_keyframes', m.animation)
@@ -2581,6 +2593,7 @@ def _createModules(m):
     createModule("lookup_tables", m.rendering)
     createModule("textures", m.rendering)
     createModule('cameramanipulators', m.rendering)
+    createModule('annotations', m.rendering)
     m.animation = createModule('animation')
     createModule('animation_keyframes', m.animation)
     m.implicit_functions = createModule('implicit_functions')
