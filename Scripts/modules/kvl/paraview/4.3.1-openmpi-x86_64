@@ -1,0 +1,33 @@
+#%Module
+#
+proc ModulesHelp { } {
+        puts stderr " "
+        puts stderr "\t This module provides ParaView version 4.3.1"
+        puts stderr " "
+}
+
+module-whatis   "ParaView Visualization Tool (4.3.1)"
+
+module load kvl-remote
+module load qt/4.8.1
+module load python/2.7.3
+module load openmpi-x86_64
+module load cuda/5.5.22
+module load ffmpeg/0.10.2
+module load tbb/4.3
+module load boost/1.55.0
+module load doxygen/1.8.7
+
+set package_root /var/remote/software/paraview/4.3.1-openmpi-x86_64
+
+prepend-path PATH "${package_root}/bin"
+prepend-path LD_LIBRARY_PATH "${package_root}/lib"
+prepend-path LD_LIBRARY_PATH "${package_root}/lib/paraview-4.3"
+prepend-path LD_LIBRARY_PATH "${package_root}/lib/paraview-4.3/site-packages/vtk"
+prepend-path PYTHONPATH "${package_root}/lib/paraview-4.3/site-packages"
+prepend-path PYTHONPATH "${package_root}/lib/paraview-4.3"
+prepend-path PYTHONPATH "${package_root}/lib/paraview-4.3/site-packages/vtk"
+prepend-path CMAKE_LIBRARY_PATH ${package_root}/lib
+prepend-path CMAKE_LIBRARY_PATH ${package_root}/lib/paraview-4.3
+append-path CMAKE_INCLUDE_PATH ${package_root}/include/paraview-4.3
+append-path CPLUS_INCLUDE_PATH ${package_root}/include/paraview-4.3

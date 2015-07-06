@@ -1,0 +1,16 @@
+#%Module
+#
+proc ModulesHelp { } {
+        puts stderr " "
+        puts stderr "\t This module provides OSMesa-llvm library 10.6.1"
+        puts stderr " "
+}
+
+module-whatis   "OSMesa-llvm library 10.6.1"
+
+set package_root /home/holstgr/software/mesa/10.6.1/llvmpipe
+
+prepend-path LD_LIBRARY_PATH "${package_root}/lib"
+prepend-path CMAKE_LIBRARY_PATH ${package_root}/lib"
+append-path CMAKE_INCLUDE_PATH ${package_root}/include
+append-path CPLUS_INCLUDE_PATH ${package_root}/include

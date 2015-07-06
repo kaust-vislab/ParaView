@@ -1,0 +1,36 @@
+#!/bin/bash -l
+#
+#BSUB -L /bin/bash
+#BSUB -J paraview
+#BSUB -W 00:10
+#BSUB -u ???
+#BSUB -q idle
+#BSUB -n 8
+#BSUB -R "span[ptile=4]"
+#BSUB -o pv-session.%J.out
+#BSUB -e pv-session.%J.err
+
+nodes=2
+tasks_per_node=4
+total_processes=$[nodes*tasks_per_node]
+
+## bsub < job_template.lsh 
+
+
+# Load environment modules
+module use /home/holstgr/software/modules
+
+module load /home/holstgr/software/modules/paraview/4.3.1-gcc-openmpi
+
+
+# Define the address of your ParaView client workstation IP address:
+# hostname -i
+client=xxx.xxx.xxx.xxx
+srvrport=11111
+
+mpirunexec=${MPIEXEC:-`which mpirun`}
+pvsrvr=$(which pvserver)
+
+# Run pvserver with OpenMPI
+$mpirunexec -x LD_LIBRARY_PATH -np $total_processes \
+    $pvsrvr --reverse-connection --server-port=$srvrport --client-host=$client --use-offscreen-rendering

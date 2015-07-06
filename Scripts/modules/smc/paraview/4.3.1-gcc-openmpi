@@ -1,0 +1,36 @@
+#%Module
+#
+proc ModulesHelp { } {
+        puts stderr " "
+        puts stderr "\t This module provides ParaView Server version 4.3.1"
+        puts stderr " "
+}
+
+module-whatis   "ParaView Visualization Tool Server (4.3.1)"
+
+module load compilers-extra
+module load libs-extra
+module load applications-extra
+
+module load gcc/4.6.0
+module load cmake/3.2.3
+module load boost/1.57.0
+module load mpi-openmpi/1.6.4-gcc-4.6.0
+module load atlas/3.8.4-sse3
+module load python/2.7.6
+
+module load /home/holstgr/software/modules/mesa/10.6.1-gcc
+
+set package_root /home/holstgr/software/paraview/4.3.1
+
+prepend-path PATH "${package_root}/bin"
+prepend-path LD_LIBRARY_PATH "${package_root}/lib"
+prepend-path LD_LIBRARY_PATH "${package_root}/lib/paraview-4.3"
+prepend-path LD_LIBRARY_PATH "${package_root}/lib/paraview-4.3/site-packages/vtk"
+prepend-path PYTHONPATH "${package_root}/lib/paraview-4.3/site-packages"
+prepend-path PYTHONPATH "${package_root}/lib/paraview-4.3"
+prepend-path PYTHONPATH "${package_root}/lib/paraview-4.3/site-packages/vtk"
+prepend-path CMAKE_LIBRARY_PATH ${package_root}/lib
+prepend-path CMAKE_LIBRARY_PATH ${package_root}/lib/paraview-4.3
+append-path CMAKE_INCLUDE_PATH ${package_root}/include/paraview-4.3
+append-path CPLUS_INCLUDE_PATH ${package_root}/include/paraview-4.3
